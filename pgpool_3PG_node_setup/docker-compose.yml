@@ -1,0 +1,114 @@
+version: '3'
+services: 
+  pg_pgpool:
+    build:
+        context: ../base
+        args:
+            - CERTUSERNAME=certuser
+        dockerfile: pg-pgpool.Dockerfile
+    image: pgsql-pgpool:10
+    container_name: pgsql-pgpool
+    privileged: true
+    volumes:
+      - ./:/docker
+  pgpool:
+    build:
+        context: ../base
+        args:
+            - CERTUSERNAME=certuser
+        dockerfile: pgpool.Dockerfile
+    image: pgpool:41
+    container_name: pgpool
+    privileged: true
+    volumes:
+      - ./:/docker
+  pgnode_master:
+    build:
+        context: .
+        args:
+            - ROLE=master
+        dockerfile: ./pgnode.Dockerfile
+    image: pgnode/master:latest
+    container_name: pgmaster
+    hostname: pgmaster
+    privileged: true
+    depends_on:
+            - pg_pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.50
+  pgnode_standby:
+    build:
+        context: ./
+        args:
+            - ROLE=standby
+        dockerfile: pgnode.Dockerfile
+    image: pgnode/standby:latest
+    container_name: pgstandby
+    hostname: pgstandby
+    privileged: true
+    depends_on:
+            - pgnode_master
+            - pg_pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.51
+  pgnode_standby2:
+    build:
+        context: ./
+        args:
+            - ROLE=standby
+        dockerfile: pgnode.Dockerfile
+    image: pgnode/standby2:latest
+    container_name: pgstandby2
+    hostname: pgstandby2
+    privileged: true
+    depends_on:
+            - pgnode_master
+            - pg_pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.52
+  pgpoolNode:
+    build:
+        context: .
+        dockerfile: pgpoolnode.Dockerfile
+    image: pgpoolnode_ex3:latest
+    container_name: pgpoolNode
+    hostname: pgpoolnode
+    privileged: true
+    depends_on:
+            - pgnode_standby
+            - pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.53
+  clientnode:
+    build:
+        context: .
+        dockerfile: clientnode.Dockerfile
+    image: clientnode:latest
+    container_name: clientnode
+    hostname: clientnode
+    privileged: true
+    depends_on:
+            - pgpoolNode
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.55
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.22.0.0/24

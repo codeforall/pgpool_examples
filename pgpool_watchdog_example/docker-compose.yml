@@ -1,0 +1,152 @@
+version: '3'
+services: 
+  pg_pgpool:
+    build:
+        context: ../base
+        args:
+            - CERTUSERNAME=certuser
+        dockerfile: pg-pgpool.Dockerfile
+    image: pgsql-pgpool:10
+    container_name: pgsql-pgpool
+    privileged: true
+    volumes:
+      - ./:/docker
+  pgpool:
+    build:
+        context: ../base
+        args:
+            - CERTUSERNAME=certuser
+        dockerfile: pgpool.Dockerfile
+    image: pgpool:41
+    container_name: pgpool
+    privileged: true
+    volumes:
+      - ./:/docker
+  pgnode_master:
+    build:
+        context: .
+        args:
+            - ROLE=master
+        dockerfile: ./pgnode.Dockerfile
+    image: pgnode/master:latest
+    container_name: pgmaster
+    hostname: pgmaster
+    privileged: true
+    depends_on:
+            - pg_pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.50
+  pgnode_standby:
+    build:
+        context: ./
+        args:
+            - ROLE=standby
+        dockerfile: pgnode.Dockerfile
+    image: pgnode/standby:latest
+    container_name: pgstandby
+    hostname: pgstandby
+    privileged: true
+    depends_on:
+            - pgnode_master
+            - pg_pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.51
+  pgpoolNode0:
+    build:
+        context: .
+        args:
+            - MYHOSTNAME=pgpoolnode0
+            - WD_NODE0_HOST=pgpoolnode1
+            - WD_NODE1_HOST=pgpoolnode2
+            - WD_PRIORITY=3
+        dockerfile: pgpoolnode.Dockerfile
+    image: pgpoolnode0:latest
+    container_name: pgpoolNode0
+    hostname: pgpoolnode0
+    privileged: true
+    depends_on:
+            - pg_pgpool
+            - pgnode_master
+            - pgnode_standby
+            - pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.52
+  pgpoolNode1:
+    build:
+        context: .
+        args:
+            - MYHOSTNAME=pgpoolnode1
+            - WD_NODE0_HOST=pgpoolnode0
+            - WD_NODE1_HOST=pgpoolnode2
+            - WD_PRIORITY=2
+        dockerfile: pgpoolnode.Dockerfile
+    image: pgpoolnode/node0:latest
+    container_name: pgpoolNode1
+    hostname: pgpoolnode1
+    privileged: true
+    depends_on:
+            - pg_pgpool
+            - pgnode_master
+            - pgnode_standby
+            - pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.53
+  pgpoolNode2:
+    build:
+        context: .
+        args:
+            - MYHOSTNAME=pgpoolnode2
+            - WD_NODE0_HOST=pgpoolnode0
+            - WD_NODE1_HOST=pgpoolnode1
+            - WD_PRIORITY=1
+        dockerfile: pgpoolnode.Dockerfile
+    image: pgpoolnode2:latest
+    container_name: pgpoolNode2
+    hostname: pgpoolnode2
+    privileged: true
+    depends_on:
+            - pg_pgpool
+            - pgpool
+            - pgnode_master
+            - pgnode_standby
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.54
+  clientnode:
+    build:
+        context: .
+        dockerfile: clientnode.Dockerfile
+    image: clientnode:latest
+    container_name: clientnode
+    hostname: clientnode
+    privileged: true
+    depends_on:
+            - pg_pgpool
+            - pgnode_master
+            - pgnode_standby
+            - pgpool
+    volumes:
+      - ./:/docker
+    networks:
+      app_net:
+        ipv4_address: 172.22.0.55
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.22.0.0/24
