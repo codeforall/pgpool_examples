@@ -11,7 +11,7 @@ which is just a centos:6.6 docker image with PostgreSQL and Pgpool-II installed.
 
 # How to build and run
 
-To run the exmaple do the following:
+To run the example do the following:
 ```
 docker-compose build
 docker-compose up

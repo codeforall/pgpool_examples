@@ -7,9 +7,9 @@ These examples can be used to test the backend failover, online recovery, watchd
 
 # How to build and run
 
-To run the exmaple do the following:
+To run the example do the following:
 ```
-cd exampele_dir
+cd example_dir
 docker-compose build
 docker-compose up
 ```
